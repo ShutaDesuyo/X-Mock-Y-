@@ -1,0 +1,20 @@
+.env
+
+# Node
+node_modules/
+src/node_modules/
+
+# Laravel generated / runtime
+src/storage/framework/cache/
+src/storage/framework/sessions/
+src/storage/framework/views/
+src/storage/logs/
+src/bootstrap/cache/packages.php
+src/bootstrap/cache/services.php
+
+# Uploaded files (user content)
+src/storage/app/public/
+
+# OS
+.DS_Store
+Thumbs.db
