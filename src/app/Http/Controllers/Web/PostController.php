@@ -61,12 +61,19 @@ class PostController extends Controller
         return back();
     }
 
-    public function show(Post $post)
+    public function show(Request $request, Post $post)
     {
         $post->load(['user', 'likes', 'comments.user']);
         $post->liked          = $post->likes->contains('user_id', Auth::id());
         $post->likes_count    = $post->likes->count();
         $post->comments_count = $post->comments->count();
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'post'     => $post,
+                'comments' => $post->comments,
+            ]);
+        }
 
         return view('post.show', compact('post'));
     }

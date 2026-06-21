@@ -22,7 +22,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
 
     // 投稿
     Route::get('/timeline', [PostController::class, 'timeline']);
-    Route::apiResource('posts', PostController::class);
+    Route::apiResource('posts', PostController::class)->names('api.posts');
     Route::get('/users/{username}/posts', [PostController::class, 'userPosts']);
 
     // いいね

@@ -248,6 +248,75 @@
     </div>
 </div>
 
+{{-- ===== 投稿詳細モーダル ===== --}}
+<div id="post-detail-modal"
+    class="hidden fixed inset-0 z-50 overflow-y-auto"
+    style="background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);"
+    onclick="if(event.target===this)closeModal('post-detail-modal')">
+    <div class="min-h-full flex items-start justify-center sm:py-8 sm:px-4" onclick="if(event.target===this)closeModal('post-detail-modal')">
+        <div class="bg-x-surface sm:border border-x-border sm:rounded-2xl w-full max-w-[600px] shadow-2xl">
+
+            {{-- ヘッダー --}}
+            <div class="flex items-center px-4 py-3 border-b border-x-border sticky top-0 bg-x-surface z-10 sm:rounded-t-2xl">
+                <button onclick="closeModal('post-detail-modal')"
+                    class="p-2 -ml-1 rounded-full hover:bg-white/10 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                </button>
+                <span class="ml-6 font-bold text-[19px]">投稿</span>
+            </div>
+
+            {{-- ローディング --}}
+            <div id="post-detail-loading" class="flex items-center justify-center py-20">
+                <div class="w-8 h-8 border-2 border-x-blue border-t-transparent rounded-full animate-spin"></div>
+            </div>
+
+            {{-- コンテンツ --}}
+            <div id="post-detail-content" class="hidden">
+                {{-- 投稿本文 --}}
+                <div class="px-4 pt-4 pb-0">
+                    <div class="flex gap-3 mb-3">
+                        <div id="detail-avatar" class="w-10 h-10 rounded-full bg-gradient-to-br from-x-blue to-purple-500 flex items-center justify-center font-bold shrink-0 overflow-hidden text-white"></div>
+                        <div>
+                            <div id="detail-name" class="font-bold leading-tight"></div>
+                            <div id="detail-username" class="text-x-muted text-sm"></div>
+                        </div>
+                    </div>
+                    <p id="detail-body" class="text-[17px] leading-relaxed whitespace-pre-wrap break-words mb-3"></p>
+                    <div id="detail-image-wrap" class="hidden mb-3 rounded-2xl overflow-hidden border border-x-border">
+                        <img id="detail-image" src="" alt="" class="w-full max-h-96 object-cover">
+                    </div>
+                    <p id="detail-date" class="text-x-muted text-sm pb-3 border-b border-x-border"></p>
+                    <div class="flex gap-5 py-3 border-b border-x-border text-sm">
+                        <span><span id="detail-likes-count" class="font-bold text-x-text"></span> <span class="text-x-muted">いいね</span></span>
+                        <span><span id="detail-comments-count" class="font-bold text-x-text"></span> <span class="text-x-muted">返信</span></span>
+                    </div>
+                    <div class="flex items-center py-1 border-b border-x-border" id="detail-actions"></div>
+                </div>
+
+                {{-- 返信フォーム --}}
+                <div class="px-4 py-3 border-b border-x-border flex gap-3 items-center">
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-x-blue to-purple-500 flex items-center justify-center font-bold shrink-0 overflow-hidden">
+                        @if(auth()->user()->avatar)
+                            <img src="{{ Storage::url(auth()->user()->avatar) }}" alt="" class="w-full h-full object-cover">
+                        @else
+                            {{ mb_substr(auth()->user()->name, 0, 1) }}
+                        @endif
+                    </div>
+                    <form id="detail-comment-form" method="POST" class="flex-1 flex gap-2 items-center">
+                        @csrf
+                        <input type="text" name="content" maxlength="280" placeholder="返信する..."
+                            class="input py-2 text-sm rounded-full px-4 flex-1" required>
+                        <button type="submit" class="btn-primary text-sm px-4 py-2 shrink-0">返信</button>
+                    </form>
+                </div>
+
+                {{-- コメント一覧 --}}
+                <div id="detail-comments" class="divide-y divide-x-border"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 function openModal(id) {
     document.getElementById(id).classList.remove('hidden');
@@ -256,6 +325,81 @@ function openModal(id) {
 function closeModal(id) {
     document.getElementById(id).classList.add('hidden');
     document.body.style.overflow = '';
+}
+
+function openPostModal(data) {
+    const post = typeof data === 'string' ? JSON.parse(data) : data;
+    const u = post.user;
+
+    // アバター
+    const av = document.getElementById('detail-avatar');
+    if (u.avatar) {
+        av.innerHTML = `<img src="/storage/${u.avatar}" alt="" style="width:100%;height:100%;object-fit:cover;">`;
+    } else {
+        av.innerHTML = '';
+        av.textContent = u.name.charAt(0);
+    }
+
+    document.getElementById('detail-name').textContent = u.name;
+    document.getElementById('detail-username').textContent = '@' + u.username;
+    document.getElementById('detail-body').textContent = post.content;
+    document.getElementById('detail-date').textContent = post.created_at;
+    document.getElementById('detail-likes-count').textContent = post.likes_count;
+    document.getElementById('detail-comments-count').textContent = post.comments_count;
+
+    // 画像
+    const imgWrap = document.getElementById('detail-image-wrap');
+    if (post.image) {
+        document.getElementById('detail-image').src = `/storage/${post.image}`;
+        imgWrap.classList.remove('hidden');
+    } else {
+        imgWrap.classList.add('hidden');
+    }
+
+    // いいね
+    document.getElementById('detail-actions').innerHTML = `
+        <form method="POST" action="${post.like_url}">
+            <input type="hidden" name="_token" value="{{ csrf_token() }}">
+            <button type="submit" class="flex items-center gap-1.5 ${post.liked ? 'text-x-red' : 'text-x-muted hover:text-x-red'} transition-colors group">
+                <span class="p-2 rounded-full ${post.liked ? 'bg-x-red/10' : 'group-hover:bg-x-red/10'} transition-colors">
+                    <svg class="w-5 h-5" fill="${post.liked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"/></svg>
+                </span>
+                <span class="text-sm">${post.liked ? 'いいね済み' : 'いいね'}</span>
+            </button>
+        </form>`;
+
+    // 返信フォーム
+    document.getElementById('detail-comment-form').action = post.comment_url;
+
+    // コメント
+    const commentsEl = document.getElementById('detail-comments');
+    const comments = post.comments || [];
+    if (comments.length === 0) {
+        commentsEl.innerHTML = `<div class="px-4 py-10 text-center text-x-muted text-sm">まだ返信はありません</div>`;
+    } else {
+        commentsEl.innerHTML = comments.map(c => `
+            <div class="flex gap-3 px-4 py-3 border-b border-x-border last:border-0">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-x-blue to-purple-500 flex items-center justify-center font-bold shrink-0 overflow-hidden text-sm text-white">
+                    ${c.user.avatar ? `<img src="/storage/${c.user.avatar}" alt="" style="width:100%;height:100%;object-fit:cover;">` : escHtml(c.user.name.charAt(0))}
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                        <span class="font-bold text-sm">${escHtml(c.user.name)}</span>
+                        <span class="text-x-muted text-xs">@${escHtml(c.user.username)}</span>
+                    </div>
+                    <p class="text-sm leading-relaxed mt-0.5 whitespace-pre-wrap break-words">${escHtml(c.content)}</p>
+                </div>
+            </div>`).join('');
+    }
+
+    // ローディング非表示・コンテンツ表示
+    document.getElementById('post-detail-loading').classList.add('hidden');
+    document.getElementById('post-detail-content').classList.remove('hidden');
+    openModal('post-detail-modal');
+}
+
+function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 function previewModalImage(input) {
     if (input.files && input.files[0]) {

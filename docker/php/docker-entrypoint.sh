@@ -8,12 +8,16 @@ for dir in \
     storage/framework/sessions \
     storage/framework/views \
     storage/logs \
-    storage/app/public \
     bootstrap/cache; do
     mkdir -p "$dir"
     chown -R www-data:www-data "$dir"
     chmod -R 750 "$dir"
 done
+
+# public storage は nginx からも読み取れるよう 755 にする
+mkdir -p storage/app/public
+chown -R www-data:www-data storage/app/public
+chmod -R 755 storage/app/public
 
 touch storage/logs/php-fpm.log storage/logs/php-fpm-access.log
 chown www-data:www-data storage/logs/php-fpm.log storage/logs/php-fpm-access.log
